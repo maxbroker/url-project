@@ -12,30 +12,28 @@ const (
 	envLocal       = "local"
 	envDev         = "dev"
 	envProd        = "prod"
-	CollectionName = "url-shortener"
+	collectionName = "url-shortener"
 )
 
 func main() {
-	const op = "cmd/url-shortener/main"
 	//CONFIG
 	cfg := config.MustLoad()
 
 	//LOG
-
-	log := setupLogger(cfg.Env)
-	if log == nil {
+	logger := setupLogger(cfg.Env)
+	if logger == nil {
 		fmt.Println("Failed to load config")
 	}
-	log.Info("Starting logger", slog.String("env", cfg.Env))
-	log.Debug("Starting debug", slog.String("env", cfg.Env))
+	logger.Info("Starting logger", slog.String("env", cfg.Env))
+	logger.Debug("Starting debug", slog.String("env", cfg.Env))
 
 	// MONGODB
-
-	MongoStorage, err := storage.ConnectionToDB(CollectionName, cfg)
+	MongoStorage, err := storage.ConnectingToDB(collectionName, cfg, logger)
 	if err != nil {
-		log.Info("Error connecting to Mongo", slog.String("error", err.Error()))
+		logger.Info("Error connecting to Mongo", slog.String("error", err.Error()))
 	}
 	_ = MongoStorage
+
 	// TODO: init router: chi "chi render"
 	// TODO: run server
 }
