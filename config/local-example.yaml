@@ -1,0 +1,7 @@
+env: "prod" # local dev prod
+dbhost:  // ХОСТ
+dbport: // ПОРТ
+http_server:
+  address: АДРЕСС ( ХОСТ:ПОРТ) для хттп сервера (8080)
+  timeout: 4s
+  idle_timeout: 60s
