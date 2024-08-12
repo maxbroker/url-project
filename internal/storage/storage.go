@@ -3,6 +3,7 @@ package storage
 import (
 	"awesomeProject/internal/config"
 	"context"
+	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,14 +15,21 @@ type Storage struct {
 	db *mongo.Collection
 }
 
+func (s *Storage) SaveURL(urlToSave string, alias string) (int64, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 type StorageFile struct {
-	ID    int
+	ID    int64
 	Alias string
 	URL   string
 }
 
+var ErrURLExists = errors.New("URL already exists")
+
 func ConnectingToDB(CollectionName string, cfg *config.Config, logger *slog.Logger) (*Storage, error) {
-	const op = "storage.mongoDB.ConnectingToDB"
+	const op = "storage.ConnectingToDB"
 	dsn := fmt.Sprintf("mongodb://%s:%s", cfg.Dbhost, cfg.Dbport)
 	clientOptions := options.Client().ApplyURI(dsn)
 
@@ -41,7 +49,7 @@ func ConnectingToDB(CollectionName string, cfg *config.Config, logger *slog.Logg
 	return &createStorage, nil
 }
 
-func (s *Storage) SaveUrl(UrlToSave string, alias string) (int64, error) {
+func (s *Storage) SavingUrl(urlToSave string, alias string) (int64, error) {
 	const op = "storage.saveUrl"
 	storage := s.db
 	count, err := storage.CountDocuments(context.TODO(), bson.M{}) // Счетчик документов в коллекции, передаем базовый контекст (в более сложных случаях можно передать какой-нибудь
@@ -50,12 +58,46 @@ func (s *Storage) SaveUrl(UrlToSave string, alias string) (int64, error) {
 		return 0, fmt.Errorf("%s: %v", op, err)
 	}
 
-	linkToSave := StorageFile{ID: int(count) + 1, Alias: alias, URL: UrlToSave}
+	linkToSave := StorageFile{ID: int64(count) + 1, Alias: alias, URL: urlToSave}
+	filter := bson.M{"alias": alias}
+	var existUrl StorageFile
+
+	err = storage.FindOne(context.TODO(), filter).Decode(&existUrl)
+	if err == nil {
+		return linkToSave.ID, ErrURLExists
+	} else if !errors.Is(err, mongo.ErrNoDocuments) {
+		return linkToSave.ID, fmt.Errorf("%s: %v", op, err)
+	}
 
 	result, err := storage.InsertOne(context.TODO(), linkToSave)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %v", op, err)
 	}
 	_ = result // говорим Go, что эта штука нам ещё понадобиться(дай бог)
-	return int64(linkToSave.ID), nil
+	return linkToSave.ID, nil
+}
+
+func (s *Storage) GettingUrl(alias string) (string, error) {
+	const op = "storage.getUrl"
+	storage := s.db
+	filter := bson.M{"alias": alias}
+	var existUrl StorageFile
+
+	err := storage.FindOne(context.TODO(), filter).Decode(&existUrl)
+	if err != nil {
+		return existUrl.URL, fmt.Errorf("%s: %v", op, err)
+	}
+	return existUrl.URL, nil
+}
+
+func (s *Storage) DeleteUrl(alias string) error {
+	const op = "storage.getUrl"
+	storage := s.db
+	filter := bson.M{"alias": alias}
+
+	_, err := storage.DeleteOne(context.TODO(), filter)
+	if err != nil {
+		return fmt.Errorf("%s: %v", op, err)
+	}
+	return nil
 }
