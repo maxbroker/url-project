@@ -2,6 +2,7 @@ package save
 
 import (
 	"errors"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"net/http"
 
@@ -29,14 +30,13 @@ type Response struct {
 // TODO: move to config if needed
 const aliasLength = 6
 
-//go:generate go run github.com/vektra/mockery/v2@v2.28.2 --name=URLSaver
 type URLSaver interface {
-	SaveURL(urlToSave string, alias string) (int64, error)
+	SaveURL(urlToSave string, alias string) (primitive.ObjectID, error)
 }
 
-func New(logger *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
+func SaveUrlHandler(logger *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.url.save.New"
+		const op = "handlers.url.save.SaveUrlHandler"
 
 		log := logger.With(
 			slog.String("op", op),
@@ -96,7 +96,7 @@ func New(logger *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 			return
 		}
 
-		log.Info("url added", slog.Int64("id", id))
+		log.Info("url added", slog.Any("id", id))
 
 		responseOK(w, r, alias)
 	}

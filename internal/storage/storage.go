@@ -6,84 +6,80 @@ import (
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log/slog"
 )
 
 type Storage struct {
-	db *mongo.Collection
-}
-
-func (s *Storage) SaveURL(urlToSave string, alias string) (int64, error) {
-	//TODO implement me
-	panic("implement me")
+	db  *mongo.Collection
+	ctx context.Context
 }
 
 type StorageFile struct {
-	ID    int64
 	Alias string
 	URL   string
 }
 
-var ErrURLExists = errors.New("URL already exists")
+var (
+	ErrURLExists = errors.New("URL already exists")
+	ZeroID       primitive.ObjectID
+)
 
-func ConnectingToDB(CollectionName string, cfg *config.Config, logger *slog.Logger) (*Storage, error) {
-	const op = "storage.ConnectingToDB"
+func ConnectToDB(CollectionName string, cfg *config.Config, logger *slog.Logger, ctx context.Context) (*Storage, error) {
+	const op = "storage.ConnectToDB"
 	dsn := fmt.Sprintf("mongodb://%s:%s", cfg.Dbhost, cfg.Dbport)
 	clientOptions := options.Client().ApplyURI(dsn)
 
-	client, err := mongo.Connect(context.TODO(), clientOptions)
+	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", op, err)
 	}
 
-	err = client.Ping(context.TODO(), nil)
+	err = client.Ping(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", op, err)
 	}
 
-	logger.Info("Connected to MongoDB!", slog.String("env", cfg.Env))
+	logger.Info("Connected to MongoDB!")
 	collection := client.Database("mydb").Collection(CollectionName)
-	createStorage := Storage{collection}
+	createStorage := Storage{collection, ctx}
 	return &createStorage, nil
 }
 
-func (s *Storage) SavingUrl(urlToSave string, alias string) (int64, error) {
+func (s *Storage) SaveURL(urlToSave string, alias string) (primitive.ObjectID, error) {
 	const op = "storage.saveUrl"
 	storage := s.db
-	count, err := storage.CountDocuments(context.TODO(), bson.M{}) // Счетчик документов в коллекции, передаем базовый контекст (в более сложных случаях можно передать какой-нибудь
-	// другой контекст, который будет управлять временем и отменой операции, а также устанавливается filter, в нашем случае пустой, т.к. нужна вся коллекция)
-	if err != nil {
-		return 0, fmt.Errorf("%s: %v", op, err)
-	}
-
-	linkToSave := StorageFile{ID: int64(count) + 1, Alias: alias, URL: urlToSave}
+	linkToSave := StorageFile{Alias: alias, URL: urlToSave}
 	filter := bson.M{"alias": alias}
 	var existUrl StorageFile
 
-	err = storage.FindOne(context.TODO(), filter).Decode(&existUrl)
+	err := storage.FindOne(s.ctx, filter).Decode(&existUrl)
 	if err == nil {
-		return linkToSave.ID, ErrURLExists
+		return ZeroID, ErrURLExists
 	} else if !errors.Is(err, mongo.ErrNoDocuments) {
-		return linkToSave.ID, fmt.Errorf("%s: %v", op, err)
+		return ZeroID, fmt.Errorf("%s: %v", op, err)
 	}
-
-	result, err := storage.InsertOne(context.TODO(), linkToSave)
+	insertResult, err := storage.InsertOne(s.ctx, linkToSave)
 	if err != nil {
-		return 0, fmt.Errorf("%s: %v", op, err)
+		return ZeroID, fmt.Errorf("%s: %v", op, err)
 	}
-	_ = result // говорим Go, что эта штука нам ещё понадобиться(дай бог)
-	return linkToSave.ID, nil
+	objectID, ok := insertResult.InsertedID.(primitive.ObjectID)
+	if !ok {
+		return ZeroID, fmt.Errorf("%s: failed to convert InsertedID to ObjectID", op)
+	}
+	fmt.Printf("Url was been saved", slog.Any("_id", objectID))
+	return objectID, nil
 }
 
-func (s *Storage) GettingUrl(alias string) (string, error) {
+func (s *Storage) GetUrl(alias string) (string, error) {
 	const op = "storage.getUrl"
 	storage := s.db
 	filter := bson.M{"alias": alias}
 	var existUrl StorageFile
 
-	err := storage.FindOne(context.TODO(), filter).Decode(&existUrl)
+	err := storage.FindOne(s.ctx, filter).Decode(&existUrl)
 	if err != nil {
 		return existUrl.URL, fmt.Errorf("%s: %v", op, err)
 	}
@@ -95,7 +91,7 @@ func (s *Storage) DeleteUrl(alias string) error {
 	storage := s.db
 	filter := bson.M{"alias": alias}
 
-	_, err := storage.DeleteOne(context.TODO(), filter)
+	_, err := storage.DeleteOne(s.ctx, filter)
 	if err != nil {
 		return fmt.Errorf("%s: %v", op, err)
 	}
