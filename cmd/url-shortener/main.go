@@ -2,7 +2,6 @@ package main
 
 import (
 	"awesomeProject/internal/config"
-	"awesomeProject/internal/http-server/handlers/url/save"
 	"awesomeProject/internal/lib/logger/setup"
 	"awesomeProject/internal/lib/router"
 	"awesomeProject/internal/storage"
@@ -27,7 +26,9 @@ func main() {
 	if logger == nil {
 		fmt.Println("Failed to load config")
 	}
-	logger.Info("Starting logger", slog.String("env", cfg.Env))
+	logger.Info("Starting logger",
+		slog.String("env", cfg.Env),
+		slog.String("version", "123"))
 	logger.Debug("debug messages are enabled")
 
 	// MONGODB
@@ -37,15 +38,15 @@ func main() {
 		return
 	}
 	// ROUTER
-	NewRouter := router.SetupRouter(logger)
+	newRouter := router.SetupRouter(logger)
 
-	NewRouter.Post("/url", save.SaveUrlHandler(logger, mongoStorage))
+	_, err = router.Requests(newRouter, logger, mongoStorage)
 	// SERVER
 	logger.Info("Starting server", slog.String("address", cfg.Address))
 
 	srv := &http.Server{
 		Addr:         cfg.Address,
-		Handler:      NewRouter,
+		Handler:      newRouter,
 		ReadTimeout:  cfg.HTTPServer.Timeout,
 		WriteTimeout: cfg.HTTPServer.Timeout,
 		IdleTimeout:  cfg.HTTPServer.IdleTimeout,

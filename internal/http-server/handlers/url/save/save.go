@@ -2,13 +2,14 @@ package save
 
 import (
 	"errors"
+	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"github.com/go-playground/validator/v10"
+	_ "github.com/go-playground/validator/v10"
 	"log/slog"
 
 	resp "awesomeProject/internal/lib/api/response"
@@ -30,6 +31,7 @@ type Response struct {
 // TODO: move to config if needed
 const aliasLength = 6
 
+//go:generate go run github.com/vektra/mockery/v2@v2.44.1 --name=URLSaver
 type URLSaver interface {
 	SaveURL(urlToSave string, alias string) (primitive.ObjectID, error)
 }

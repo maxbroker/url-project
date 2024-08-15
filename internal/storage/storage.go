@@ -23,8 +23,9 @@ type StorageFile struct {
 }
 
 var (
-	ErrURLExists = errors.New("URL already exists")
-	ZeroID       primitive.ObjectID
+	ErrURLExists   = errors.New("URL already exists")
+	ErrURLNotFound = errors.New("URL not found")
+	ZeroID         primitive.ObjectID
 )
 
 func ConnectToDB(CollectionName string, cfg *config.Config, logger *slog.Logger, ctx context.Context) (*Storage, error) {
@@ -81,7 +82,7 @@ func (s *Storage) GetUrl(alias string) (string, error) {
 
 	err := storage.FindOne(s.ctx, filter).Decode(&existUrl)
 	if err != nil {
-		return existUrl.URL, fmt.Errorf("%s: %v", op, err)
+		return existUrl.URL, ErrURLNotFound
 	}
 	return existUrl.URL, nil
 }

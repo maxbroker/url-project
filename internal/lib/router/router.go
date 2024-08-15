@@ -1,7 +1,10 @@
 package router
 
 import (
+	"awesomeProject/internal/http-server/handlers/url/save"
 	mwLogger "awesomeProject/internal/http-server/middleware/logger"
+	"awesomeProject/internal/lib/logger/handlers/redirect"
+	"awesomeProject/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"log/slog"
@@ -16,4 +19,10 @@ func SetupRouter(logger *slog.Logger) *chi.Mux {
 	router.Use(middleware.Recoverer) // в случае паники восстанавливаем, чтоб ничего не падало из-за 1 запроса
 	router.Use(middleware.URLFormat)
 	return router
+}
+
+func Requests(router *chi.Mux, logger *slog.Logger, storage *storage.Storage) (any, error) {
+	router.Post("/url", save.SaveUrlHandler(logger, storage))
+	router.Get("/{alias}", redirect.RedirectUrl(logger, storage))
+	return false, nil
 }
