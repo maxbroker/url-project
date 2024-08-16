@@ -74,7 +74,7 @@ func (s *Storage) SaveURL(urlToSave string, alias string) (primitive.ObjectID, e
 	return objectID, nil
 }
 
-func (s *Storage) GetUrl(alias string) (string, error) {
+func (s *Storage) GetURL(alias string) (string, error) {
 	const op = "storage.getUrl"
 	storage := s.db
 	filter := bson.M{"alias": alias}
@@ -82,19 +82,22 @@ func (s *Storage) GetUrl(alias string) (string, error) {
 
 	err := storage.FindOne(s.ctx, filter).Decode(&existUrl)
 	if err != nil {
-		return existUrl.URL, ErrURLNotFound
+		return "", ErrURLNotFound
 	}
+
 	return existUrl.URL, nil
 }
 
 func (s *Storage) DeleteUrl(alias string) error {
-	const op = "storage.getUrl"
+	const op = "storage.deleteUrl"
 	storage := s.db
 	filter := bson.M{"alias": alias}
-
-	_, err := storage.DeleteOne(s.ctx, filter)
+	result, err := storage.DeleteOne(s.ctx, filter)
 	if err != nil {
-		return fmt.Errorf("%s: %v", op, err)
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	if result.DeletedCount == 0 {
+		return ErrURLNotFound
 	}
 	return nil
 }

@@ -1,16 +1,18 @@
 package router
 
 import (
+	"awesomeProject/internal/config"
+	"awesomeProject/internal/http-server/handlers/redirect"
+	delete2 "awesomeProject/internal/http-server/handlers/url/delete"
 	"awesomeProject/internal/http-server/handlers/url/save"
 	mwLogger "awesomeProject/internal/http-server/middleware/logger"
-	"awesomeProject/internal/lib/logger/handlers/redirect"
 	"awesomeProject/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"log/slog"
 )
 
-func SetupRouter(logger *slog.Logger) *chi.Mux {
+func SetupRouter(logger *slog.Logger, storage *storage.Storage, cfg *config.Config) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID) // мидлвейр с присваиванием АЙДИ каждому запросу, что может помочь при отслеживании
 	// действий для конкретного запроса (например при ошибке, чтоб понять, где ошибка)
@@ -18,11 +20,14 @@ func SetupRouter(logger *slog.Logger) *chi.Mux {
 	router.Use(mwLogger.New(logger))
 	router.Use(middleware.Recoverer) // в случае паники восстанавливаем, чтоб ничего не падало из-за 1 запроса
 	router.Use(middleware.URLFormat)
+	//Авторизация Админа
+	router.Route("/url", func(r chi.Router) {
+		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
+			cfg.HTTPServer.User: cfg.HTTPServer.Password,
+		}))
+		r.Post("/", save.SaveUrlHandler(logger, storage))
+		r.Delete("/{alias}", delete2.DeleteUrlHandler(logger, storage))
+	})
+	router.Get("/{alias}", redirect.RedirectUrlHandler(logger, storage))
 	return router
-}
-
-func Requests(router *chi.Mux, logger *slog.Logger, storage *storage.Storage) (any, error) {
-	router.Post("/url", save.SaveUrlHandler(logger, storage))
-	router.Get("/{alias}", redirect.RedirectUrl(logger, storage))
-	return false, nil
 }

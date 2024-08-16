@@ -38,9 +38,7 @@ func main() {
 		return
 	}
 	// ROUTER
-	newRouter := router.SetupRouter(logger)
-
-	_, err = router.Requests(newRouter, logger, mongoStorage)
+	newRouter := router.SetupRouter(logger, mongoStorage, cfg)
 	// SERVER
 	logger.Info("Starting server", slog.String("address", cfg.Address))
 

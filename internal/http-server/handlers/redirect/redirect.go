@@ -12,40 +12,36 @@ import (
 	"net/http"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.44.1 --name=UrlGetter
 type UrlGetter interface {
-	GetUrl(alias string) (string, error)
+	GetURL(alias string) (string, error)
 }
 
-func RedirectUrl(logger *slog.Logger, urlGetter UrlGetter) http.HandlerFunc {
+func RedirectUrlHandler(logger *slog.Logger, urlGetter UrlGetter) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		const op = "handlers.url.redirect.RedirectUrl"
+		const op = "handlers.url.redirect.RedirectUrlHandler"
 
 		logger = logger.With(
 			slog.String("op", op),
 			slog.String("request_id", middleware.GetReqID(request.Context())),
 		)
+
 		alias := chi.URLParam(request, "alias")
 		if alias == "" {
 			logger.Info("alias is empty")
-
 			render.JSON(writer, request, resp.Error("invalid request"))
-
 			return
 		}
 
-		resURL, err := urlGetter.GetUrl(alias)
+		resURL, err := urlGetter.GetURL(alias)
 		if errors.Is(err, storage.ErrURLNotFound) {
 			logger.Info("url not found", "alias", alias)
-
 			render.JSON(writer, request, resp.Error("not found"))
-
 			return
 		}
 		if err != nil {
 			logger.Error("failed to get url", sl.Err(err))
-
 			render.JSON(writer, request, resp.Error("internal error"))
-
 			return
 		}
 		logger.Info("got url", slog.String("url", resURL))
