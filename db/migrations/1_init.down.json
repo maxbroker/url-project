@@ -1,0 +1,5 @@
+{
+    "operation": "dropCollection",
+    "database": "mydb",
+    "collection": "url-shortener"
+}

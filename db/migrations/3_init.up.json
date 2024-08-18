@@ -1,0 +1,19 @@
+[
+  {
+    "insert": "url-shortener",
+    "documents": [
+      {
+        "alias": "example1",
+        "url": "https://example.com"
+      },
+      {
+        "alias": "example2",
+        "url": "https://example.com/2"
+      },
+      {
+        "alias": "example3",
+        "url": "https://example.com/3"
+      }
+    ]
+  }
+]

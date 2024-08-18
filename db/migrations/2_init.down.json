@@ -1,0 +1,10 @@
+[
+  {
+    "dropIndexes": "url-shortener",
+    "index": "username_sort_by_asc_created"
+  },
+  {
+    "dropIndexes": "url-shortener",
+    "index": "unique_email"
+  }
+]

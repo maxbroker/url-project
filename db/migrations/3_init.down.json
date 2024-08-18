@@ -1,0 +1,8 @@
+{
+    "operation": "delete",
+    "database": "mydb",
+    "collection": "url-shortener",
+    "filter": {
+        "alias": { "$in": ["testAlias1", "testAlias2", "testAlias3"] }
+    }
+}
