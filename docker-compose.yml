@@ -1,0 +1,26 @@
+services:
+  app:
+    image: url-project:local
+    environment:
+      CONFIG_PATH: "/config.yaml"
+    container_name: ps-backend
+    depends_on:
+      - mongodb_container
+    networks:
+      - ps
+
+  mongodb_container:
+    image: mongo:latest
+    container_name: ps-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    volumes:
+      - mongodb_data_container:/data/db
+    networks:
+      - ps
+volumes:
+  mongodb_data_container:
+
+networks:
+  ps:

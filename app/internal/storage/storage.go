@@ -43,14 +43,13 @@ func ConnectToDB(CollectionName string, DBName string, cfg *config.Config, logge
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", op, err)
 	}
-	logger.Info("Connected to MongoDB!")
 	db := client.Database(DBName)
 	if err := initCollections(db, CollectionName); err != nil {
 		return nil, fmt.Errorf("%s: %v", op, err)
 	}
-
 	collection := db.Collection(CollectionName)
 	createStorage := Storage{collection, ctx}
+	logger.Info("Connected to MongoDB!")
 	return &createStorage, nil
 }
 
