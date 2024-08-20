@@ -1,0 +1,19 @@
+services:
+  mongodb_container:
+      image: mongo:latest
+      container_name: ps-mongodb
+      environment:
+        MONGO_INITDB_ROOT_USERNAME: myuser
+        MONGO_INITDB_ROOT_PASSWORD: mypass
+        MONGODB_URL: mongodb://myuser:mypass@localhost:27017/mydb
+      ports:
+        - 27017:27017
+      volumes:
+        - mongodbdatacontainer:/data/db
+      networks:
+        - ps
+volumes:
+  mongodbdatacontainer:
+
+networks:
+  ps:

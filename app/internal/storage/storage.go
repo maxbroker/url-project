@@ -63,10 +63,18 @@ func RunMigrations(dbName string, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
-
+	// сделал какой то пиздец, выглядит очень страшно, но работает и запускается каждый раз, иначе то ругается через раз,
+	// что миграционный файл неможет заанмаршелить, то говорит что версия базы Дёрти, пока ничего умнее не придумал
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("failed to apply migrations: %w", err)
+		err = m.Force(1)
+		if err != nil {
+			return fmt.Errorf("failed to apply migrations: %w", err)
+		}
+		err = RunMigrations(dbName, cfg)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
