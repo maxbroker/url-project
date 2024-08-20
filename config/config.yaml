@@ -1,9 +1,0 @@
-env: "prod" # local dev prod
-dbhost:  localhost
-dbport: "27017"
-http_server:
-  address: "0.0.0.0:8082"
-  timeout: 4s
-  idle_timeout: 60s
-  user: "myuser"
-  password: "mypass"
