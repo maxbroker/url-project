@@ -31,9 +31,8 @@ var (
 
 func ConnectToDB(CollectionName string, DBName string, cfg *config.Config, logger *slog.Logger, ctx context.Context) (*Storage, error) {
 	const op = "migrations.ConnectToDB"
-	dsn := fmt.Sprintf("mongodb://%s:%s", cfg.Dbhost, cfg.Dbport)
+	dsn := fmt.Sprintf("mongodb://myuser:mypass@%s:%s", cfg.Dbhost, cfg.Dbport)
 	clientOptions := options.Client().ApplyURI(dsn)
-
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", op, err)
@@ -55,10 +54,10 @@ func ConnectToDB(CollectionName string, DBName string, cfg *config.Config, logge
 
 func RunMigrations(dbName string, cfg *config.Config) error {
 	// Путь к папке с миграциями
-	migrationsPath := "file://db/migrations"
+	migrationsPath := "file:///db/migrations"
 	m, err := migrate.New(
 		migrationsPath,
-		fmt.Sprintf("mongodb://%s:%s/%s", cfg.Dbhost, cfg.Dbport, dbName),
+		fmt.Sprintf("mongodb://myuser:mypass@%s:%s/%s?authSource=admin&authMechanism=SCRAM-SHA-1", cfg.Dbhost, cfg.Dbport, dbName),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
@@ -132,7 +131,6 @@ func (s *Storage) SaveURL(urlToSave string, alias string) (primitive.ObjectID, e
 }
 
 func (s *Storage) GetURL(alias string) (string, error) {
-	const op = "migrations.getUrl"
 	storage := s.db
 	filter := bson.M{"alias": alias}
 	var existUrl StorageFile
