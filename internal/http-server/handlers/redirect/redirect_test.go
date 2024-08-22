@@ -64,7 +64,7 @@ func TestRedirectURLHandler(t *testing.T) {
 			}
 
 			r := chi.NewRouter()
-			r.Get("/{alias}", redirect.RedirectUrlHandler(slogdiscard.NewDiscardLogger(), urlGetterMock))
+			r.Get("/{alias}", redirect.UrlRedirectHandler(slogdiscard.NewDiscardLogger(), urlGetterMock))
 
 			ts := httptest.NewServer(r)
 			defer ts.Close()

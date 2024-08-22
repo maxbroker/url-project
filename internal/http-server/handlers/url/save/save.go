@@ -1,6 +1,7 @@
 package save
 
 import (
+	"awesomeProject/internal/config"
 	"errors"
 	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -28,17 +29,14 @@ type Response struct {
 	Alias string `json:"alias,omitempty"`
 }
 
-// TODO: move to config if needed
-const aliasLength = 6
-
 //go:generate go run github.com/vektra/mockery/v2@v2.44.1 --name=URLSaver
 type URLSaver interface {
 	SaveURL(urlToSave string, alias string) (primitive.ObjectID, error)
 }
 
-func SaveUrlHandler(logger *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
+func UrlSaveHandler(logger *slog.Logger, urlSaver URLSaver, cfg *config.Config) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		const op = "handlers.url.save.SaveUrlHandler"
+		const op = "handlers.url.save.UrlSaveHandler"
 
 		logger := logger.With(
 			slog.String("op", op),
@@ -62,7 +60,8 @@ func SaveUrlHandler(logger *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 
 		logger.Info("request body decoded", slog.Any("request", req))
 		if err := validator.New().Struct(req); err != nil {
-			validateErr := err.(validator.ValidationErrors)
+			var validateErr validator.ValidationErrors
+			errors.As(err, &validateErr)
 			logger.Error("invalid request", sl.Err(err))
 			render.JSON(writer, request, resp.ValidationError(validateErr))
 			return
@@ -70,7 +69,7 @@ func SaveUrlHandler(logger *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 
 		alias := req.Alias
 		if alias == "" {
-			alias = random.NewRandomString(aliasLength)
+			alias = random.NewRandomString(cfg.AliasLenght)
 		}
 
 		id, err := urlSaver.SaveURL(req.URL, alias)

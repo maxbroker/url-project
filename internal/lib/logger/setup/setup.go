@@ -12,7 +12,7 @@ const (
 	envProd  = "prod"
 )
 
-func SetupLogger(env string) *slog.Logger {
+func LoggerSetup(env string) *slog.Logger {
 	var log *slog.Logger
 	switch env {
 	case envLocal:

@@ -1,6 +1,7 @@
 package save_test
 
 import (
+	"awesomeProject/internal/config"
 	"awesomeProject/internal/storage"
 	"bytes"
 	"encoding/json"
@@ -70,8 +71,8 @@ func TestSaveHandler(t *testing.T) {
 					Return(storage.ZeroID, tc.mockError).
 					Once()
 			}
-
-			handler := save.SaveUrlHandler(slogdiscard.NewDiscardLogger(), urlSaverMock)
+			var cfg config.Config
+			handler := save.UrlSaveHandler(slogdiscard.NewDiscardLogger(), urlSaverMock, &cfg)
 
 			input := fmt.Sprintf(`{"url": "%s", "alias": "%s"}`, tc.url, tc.alias)
 

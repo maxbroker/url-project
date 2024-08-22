@@ -17,9 +17,9 @@ type UrlGetter interface {
 	GetURL(alias string) (string, error)
 }
 
-func RedirectUrlHandler(logger *slog.Logger, urlGetter UrlGetter) http.HandlerFunc {
+func UrlRedirectHandler(logger *slog.Logger, urlGetter UrlGetter) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		const op = "handlers.url.redirect.RedirectUrlHandler"
+		const op = "handlers.url.redirect.UrlRedirectHandler"
 
 		logger = logger.With(
 			slog.String("op", op),

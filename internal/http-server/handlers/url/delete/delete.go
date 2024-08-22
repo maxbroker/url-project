@@ -22,9 +22,9 @@ type URLDeleter interface {
 	DeleteUrl(alias string) error
 }
 
-func DeleteUrlHandler(logger *slog.Logger, urlDeleter URLDeleter) http.HandlerFunc {
+func UrlDeleteHandler(logger *slog.Logger, urlDeleter URLDeleter) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		const op = "handlers.url.delete.DeleteUrlHandler"
+		const op = "handlers.url.delete.UrlDeleteHandler"
 
 		logger := logger.With(
 			slog.String("op", op),

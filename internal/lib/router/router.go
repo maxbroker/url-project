@@ -3,7 +3,7 @@ package router
 import (
 	"awesomeProject/internal/config"
 	"awesomeProject/internal/http-server/handlers/redirect"
-	delete2 "awesomeProject/internal/http-server/handlers/url/delete"
+	deleteReq "awesomeProject/internal/http-server/handlers/url/delete"
 	"awesomeProject/internal/http-server/handlers/url/save"
 	mwLogger "awesomeProject/internal/http-server/middleware/logger"
 	"awesomeProject/internal/storage"
@@ -25,9 +25,9 @@ func SetupRouter(logger *slog.Logger, storage *storage.Storage, cfg *config.Conf
 		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
 			cfg.HTTPServer.User: cfg.HTTPServer.Password,
 		}))
-		r.Post("/", save.SaveUrlHandler(logger, storage))
-		r.Delete("/{alias}", delete2.DeleteUrlHandler(logger, storage))
+		r.Post("/", save.UrlSaveHandler(logger, storage, cfg))
+		r.Delete("/{alias}", deleteReq.UrlDeleteHandler(logger, storage))
 	})
-	router.Get("/{alias}", redirect.RedirectUrlHandler(logger, storage))
+	router.Get("/{alias}", redirect.UrlRedirectHandler(logger, storage))
 	return router
 }

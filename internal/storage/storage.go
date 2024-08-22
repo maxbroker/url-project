@@ -18,7 +18,7 @@ type Storage struct {
 	ctx context.Context
 }
 
-type StorageFile struct {
+type File struct {
 	Alias string
 	URL   string
 }
@@ -53,7 +53,6 @@ func ConnectToDB(CollectionName string, DBName string, cfg *config.Config, logge
 }
 
 func RunMigrations(dbName string, cfg *config.Config) error {
-	// Путь к папке с миграциями
 	migrationsPath := "file:///db/migrations"
 	m, err := migrate.New(
 		migrationsPath,
@@ -62,10 +61,10 @@ func RunMigrations(dbName string, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
-	// сделал какой то пиздец, выглядит очень страшно, но работает и запускается каждый раз, иначе то ругается через раз,
-	// что миграционный файл неможет заанмаршелить, то говорит что версия базы Дёрти, пока ничего умнее не придумал
+	// сделал какой-то пиздец, выглядит очень страшно, но работает и запускается каждый раз, иначе то ругается через раз,
+	// что миграционный файл не может за анмаршелить, то говорит что версия базы Дёрти, пока ничего умнее не придумал
 	err = m.Up()
-	if err != nil && err != migrate.ErrNoChange {
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		err = m.Force(1)
 		if err != nil {
 			return fmt.Errorf("failed to apply migrations: %w", err)
@@ -108,9 +107,9 @@ func isCollectionExistsError(err error) bool {
 func (s *Storage) SaveURL(urlToSave string, alias string) (primitive.ObjectID, error) {
 	const op = "migrations.saveUrl"
 	storage := s.db
-	linkToSave := StorageFile{Alias: alias, URL: urlToSave}
+	linkToSave := File{Alias: alias, URL: urlToSave}
 	filter := bson.M{"alias": alias}
-	var existUrl StorageFile
+	var existUrl File
 
 	err := storage.FindOne(s.ctx, filter).Decode(&existUrl)
 	if err == nil {
@@ -126,14 +125,13 @@ func (s *Storage) SaveURL(urlToSave string, alias string) (primitive.ObjectID, e
 	if !ok {
 		return ZeroID, fmt.Errorf("%s: failed to convert InsertedID to ObjectID", op)
 	}
-	fmt.Printf("Url was been saved", slog.Any("_id", objectID))
 	return objectID, nil
 }
 
 func (s *Storage) GetURL(alias string) (string, error) {
 	storage := s.db
 	filter := bson.M{"alias": alias}
-	var existUrl StorageFile
+	var existUrl File
 
 	err := storage.FindOne(s.ctx, filter).Decode(&existUrl)
 	if err != nil {

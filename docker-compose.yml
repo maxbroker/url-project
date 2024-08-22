@@ -1,6 +1,6 @@
 services:
   app:
-    image: url-project:local
+    image: url-project-version-one:local
     container_name: ps-backend
     ports:
       - 8082:8082
@@ -19,7 +19,6 @@ services:
       environment:
         MONGO_INITDB_ROOT_USERNAME: "myuser"
         MONGO_INITDB_ROOT_PASSWORD: "mypass"
-        MONGODB_URL: mongodb://myuser:mypass@localhost:27017
       volumes:
         - mongodbdatacontainer:/data/db
       networks:

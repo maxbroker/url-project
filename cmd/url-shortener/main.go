@@ -7,11 +7,9 @@ import (
 	"awesomeProject/internal/storage"
 	"context"
 	"fmt"
-	_ "github.com/golang-migrate/migrate/v4/database/mongodb" // Register MongoDB driver
-	_ "github.com/golang-migrate/migrate/v4/source/file"      // Register file source driver
-	"log"
 	"log/slog"
 	"net/http"
+	"os"
 )
 
 const (
@@ -26,23 +24,22 @@ func main() {
 	cfg := config.MustLoad()
 
 	// LOG
-	logger := setup.SetupLogger(cfg.Env)
+	logger := setup.LoggerSetup(cfg.Env)
 	if logger == nil {
 		fmt.Println("Failed to load config")
 	}
-	logger.Info("Starting logger",
-		slog.String("env", cfg.Env))
+	logger.Info("Starting logger", slog.String("env", cfg.Env))
 	logger.Debug("debug messages are enabled")
 
 	// MONGODB
 	mongoStorage, err := storage.ConnectToDB(collectionName, dbName, cfg, logger, contextOur)
 	if err != nil {
 		logger.Error("Can't connect to MongoDB", slog.String("error", err.Error()))
-		return
+		os.Exit(1)
 	}
 	// Run migrations
 	if err := storage.RunMigrations(dbName, cfg); err != nil {
-		log.Fatalf("Migrations failed: %v", err)
+		logger.Error("Failed to run migrations", slog.String("error", err.Error()))
 	}
 
 	// ROUTER
