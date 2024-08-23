@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/mongodb" // Импорт драйвера MongoDB
+	_ "github.com/golang-migrate/migrate/v4/source/file"      // Импорт драйвера файловой системы
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -31,7 +33,7 @@ var (
 
 func ConnectToDB(CollectionName string, DBName string, cfg *config.Config, logger *slog.Logger, ctx context.Context) (*Storage, error) {
 	const op = "migrations.ConnectToDB"
-	dsn := fmt.Sprintf("mongodb://myuser:mypass@%s:%s", cfg.Dbhost, cfg.Dbport)
+	dsn := fmt.Sprintf("mongodb://%s:%s", cfg.Dbhost, cfg.Dbport)
 	clientOptions := options.Client().ApplyURI(dsn)
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
@@ -53,11 +55,27 @@ func ConnectToDB(CollectionName string, DBName string, cfg *config.Config, logge
 }
 
 func RunMigrations(dbName string, cfg *config.Config) error {
-	migrationsPath := "file:///db/migrations"
-	m, err := migrate.New(
-		migrationsPath,
-		fmt.Sprintf("mongodb://myuser:mypass@%s:%s/%s?authSource=admin&authMechanism=SCRAM-SHA-1", cfg.Dbhost, cfg.Dbport, dbName),
-	)
+	migrationsPath := "file://./db/migrations"
+	var connectionString string
+	fmt.Print("Env = ", cfg.Env)
+	if cfg.Env == "local" {
+		connectionString = fmt.Sprintf(
+			"mongodb://%s:%s/%s",
+			cfg.Dbhost,
+			cfg.Dbport,
+			dbName)
+	} else {
+		connectionString = fmt.Sprintf(
+			"mongodb://%s:%s@%s:%s/%s?authSource=admin&authMechanism=SCRAM-SHA-1",
+			cfg.UserDB,
+			cfg.PasswordDB,
+			cfg.Dbhost,
+			cfg.Dbport,
+			dbName,
+		)
+	}
+
+	m, err := migrate.New(migrationsPath, connectionString)
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}

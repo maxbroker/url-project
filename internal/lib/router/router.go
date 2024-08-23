@@ -23,7 +23,7 @@ func SetupRouter(logger *slog.Logger, storage *storage.Storage, cfg *config.Conf
 	//Авторизация Админа
 	router.Route("/url", func(r chi.Router) {
 		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
-			cfg.HTTPServer.User: cfg.HTTPServer.Password,
+			cfg.HTTPServer.UserApp: cfg.HTTPServer.PasswordApp,
 		}))
 		r.Post("/", save.UrlSaveHandler(logger, storage, cfg))
 		r.Delete("/{alias}", deleteReq.UrlDeleteHandler(logger, storage))
