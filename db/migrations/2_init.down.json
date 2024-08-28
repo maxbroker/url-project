@@ -1,0 +1,6 @@
+[
+  {
+    "dropIndexes": "url-shortener",
+    "index": ["alias_name", "url_name"]
+  }
+]

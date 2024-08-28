@@ -3,59 +3,132 @@ package storage
 import (
 	"awesomeProject/internal/config"
 	"context"
+	"errors"
 	"fmt"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/mongodb" // Импорт драйвера MongoDB
+	_ "github.com/golang-migrate/migrate/v4/source/file"      // Импорт драйвера файловой системы
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log/slog"
 )
 
 type Storage struct {
-	db *mongo.Collection
+	db  *mongo.Collection
+	ctx context.Context
 }
 
-type StorageFile struct {
-	ID    int
+type File struct {
 	Alias string
 	URL   string
 }
 
-func ConnectingToDB(CollectionName string, cfg *config.Config, logger *slog.Logger) (*Storage, error) {
-	const op = "storage.mongoDB.ConnectingToDB"
+var (
+	ErrURLExists   = errors.New("URL already exists")
+	ErrURLNotFound = errors.New("URL not found")
+	ZeroID         primitive.ObjectID
+)
+
+func ConnectToDB(collectionName string, dbName string, cfg *config.Config, logger *slog.Logger, ctx context.Context) (*Storage, error) {
+	const op = "migrations.ConnectToDB"
 	dsn := fmt.Sprintf("mongodb://%s:%s", cfg.Dbhost, cfg.Dbport)
 	clientOptions := options.Client().ApplyURI(dsn)
-
-	client, err := mongo.Connect(context.TODO(), clientOptions)
+	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", op, err)
 	}
 
-	err = client.Ping(context.TODO(), nil)
+	err = client.Ping(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", op, err)
 	}
-
-	logger.Info("Connected to MongoDB!", slog.String("env", cfg.Env))
-	collection := client.Database("mydb").Collection(CollectionName)
-	createStorage := Storage{collection}
+	db := client.Database(dbName)
+	collection := db.Collection(collectionName)
+	createStorage := Storage{collection, ctx}
+	logger.Info("Connected to MongoDB!")
 	return &createStorage, nil
 }
 
-func (s *Storage) SaveUrl(UrlToSave string, alias string) (int64, error) {
-	const op = "storage.saveUrl"
+func RunMigrations(dbName string, cfg *config.Config) error {
+	migrationsPath := "file://./db/migrations"
+	var connectionString string
+	if cfg.Env == "local" {
+		connectionString = fmt.Sprintf(
+			"mongodb://%s:%s/%s",
+			cfg.Dbhost,
+			cfg.Dbport,
+			dbName)
+	} else {
+		connectionString = fmt.Sprintf(
+			"mongodb://%s:%s@%s:%s/%s?authSource=admin&authMechanism=SCRAM-SHA-1",
+			cfg.UserDB,
+			cfg.PasswordDB,
+			cfg.Dbhost,
+			cfg.Dbport,
+			dbName,
+		)
+	}
+
+	m, err := migrate.New(migrationsPath, connectionString)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+	err = m.Up()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Storage) SaveURL(urlToSave string, alias string) (primitive.ObjectID, error) {
+	const op = "migrations.saveUrl"
 	storage := s.db
-	count, err := storage.CountDocuments(context.TODO(), bson.M{}) // Счетчик документов в коллекции, передаем базовый контекст (в более сложных случаях можно передать какой-нибудь
-	// другой контекст, который будет управлять временем и отменой операции, а также устанавливается filter, в нашем случае пустой, т.к. нужна вся коллекция)
+	linkToSave := File{Alias: alias, URL: urlToSave}
+	filter := bson.M{"alias": alias}
+	var existUrl File
+
+	err := storage.FindOne(s.ctx, filter).Decode(&existUrl)
+	if err == nil {
+		return ZeroID, ErrURLExists
+	} else if !errors.Is(err, mongo.ErrNoDocuments) {
+		return ZeroID, fmt.Errorf("%s: %v", op, err)
+	}
+	insertResult, err := storage.InsertOne(s.ctx, linkToSave)
 	if err != nil {
-		return 0, fmt.Errorf("%s: %v", op, err)
+		return ZeroID, fmt.Errorf("%s: %v", op, err)
+	}
+	objectID, ok := insertResult.InsertedID.(primitive.ObjectID)
+	if !ok {
+		return ZeroID, fmt.Errorf("%s: failed to convert InsertedID to ObjectID", op)
+	}
+	return objectID, nil
+}
+
+func (s *Storage) GetURL(alias string) (string, error) {
+	storage := s.db
+	filter := bson.M{"alias": alias}
+	var existUrl File
+
+	err := storage.FindOne(s.ctx, filter).Decode(&existUrl)
+	if err != nil {
+		return "", ErrURLNotFound
 	}
 
-	linkToSave := StorageFile{ID: int(count) + 1, Alias: alias, URL: UrlToSave}
+	return existUrl.URL, nil
+}
 
-	result, err := storage.InsertOne(context.TODO(), linkToSave)
+func (s *Storage) DeleteUrl(alias string) error {
+	const op = "migrations.deleteUrl"
+	storage := s.db
+	filter := bson.M{"alias": alias}
+	result, err := storage.DeleteOne(s.ctx, filter)
 	if err != nil {
-		return 0, fmt.Errorf("%s: %v", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
-	_ = result // говорим Go, что эта штука нам ещё понадобиться(дай бог)
-	return int64(linkToSave.ID), nil
+	if result.DeletedCount == 0 {
+		return ErrURLNotFound
+	}
+	return nil
 }

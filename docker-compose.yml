@@ -1,0 +1,29 @@
+services:
+  app:
+    image: url-project:local
+    container_name: ps-backend
+    ports:
+      - 8082:8082
+    environment:
+      CONFIG_PATH: "/config.yaml"
+    depends_on:
+      - mongodb_container
+    networks:
+      - ps
+
+  mongodb_container:
+      image: mongo:latest
+      container_name: ps-mongodb
+      ports:
+        - 27017:27017
+      volumes:
+        - mongodbdatacontainer:/data/db
+      networks:
+        - ps
+      command: mongod
+
+volumes:
+  mongodbdatacontainer:
+
+networks:
+  ps:

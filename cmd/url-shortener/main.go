@@ -2,59 +2,57 @@ package main
 
 import (
 	"awesomeProject/internal/config"
+	"awesomeProject/internal/lib/logger/setup"
+	"awesomeProject/internal/lib/router"
 	"awesomeProject/internal/storage"
+	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 )
 
-const (
-	envLocal       = "local"
-	envDev         = "dev"
-	envProd        = "prod"
-	collectionName = "url-shortener"
-)
-
 func main() {
-	//CONFIG
+	// CONTEXT
+	ctx := context.TODO()
+	// CONFIG
 	cfg := config.MustLoad()
 
-	//LOG
-	logger := setupLogger(cfg.Env)
+	// LOG
+	logger := setup.LoggerSetup(cfg.Env)
 	if logger == nil {
 		fmt.Println("Failed to load config")
 	}
 	logger.Info("Starting logger", slog.String("env", cfg.Env))
-	logger.Debug("Starting debug", slog.String("env", cfg.Env))
+	logger.Debug("debug messages are enabled")
+
+	// Run migrations
+	if err := storage.RunMigrations(cfg.DBName, cfg); err != nil {
+		logger.Error("Failed to run migrations", slog.String("error", err.Error()))
+	}
 
 	// MONGODB
-	MongoStorage, err := storage.ConnectingToDB(collectionName, cfg, logger)
+	mongoStorage, err := storage.ConnectToDB(cfg.CollectionName, cfg.DBName, cfg, logger, ctx)
 	if err != nil {
-		logger.Info("Error connecting to Mongo", slog.String("error", err.Error()))
-	}
-	_ = MongoStorage
-
-	// TODO: init router: chi "chi render"
-	// TODO: run server
-}
-
-func setupLogger(env string) *slog.Logger {
-	var log *slog.Logger
-
-	switch env {
-	case envLocal:
-		log = slog.New(
-			slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-		)
-	case envDev:
-		log = slog.New(
-			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-		)
-	case envProd:
-		log = slog.New(
-			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
-		)
+		logger.Error("Can't connect to MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
-	return log
+	// ROUTER
+	newRouter := router.SetupRouter(logger, mongoStorage, cfg)
+	// SERVER
+	logger.Info("Starting server", slog.String("address", cfg.Address))
+
+	srv := &http.Server{
+		Addr:         cfg.Address,
+		Handler:      newRouter,
+		ReadTimeout:  cfg.HTTPServer.Timeout,
+		WriteTimeout: cfg.HTTPServer.Timeout,
+		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
+	}
+	if err := srv.ListenAndServe(); err != nil {
+		logger.Error("Failed to start server", slog.String("error", err.Error()))
+	}
+
+	logger.Info("Server stopped")
 }

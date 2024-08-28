@@ -1,0 +1,13 @@
+[
+  {
+    "delete": "url-shortener",
+    "deletes": [
+        {
+          "q": {
+            "alias": { "$in": ["example1", "example2", "example3"] }
+          },
+          "limit": 0
+        }
+      ]
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "createIndexes": "url-shortener",
+    "indexes": [
+      {
+        "key": {
+          "alias": 1
+        },
+        "name": "alias_name",
+        "unique": true
+      },
+      {
+        "key": {
+          "url": 1
+        },
+        "name": "url_name"
+      }
+    ]
+  }
+]
