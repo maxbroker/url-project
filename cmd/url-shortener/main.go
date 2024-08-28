@@ -12,14 +12,9 @@ import (
 	"os"
 )
 
-const (
-	collectionName = "url-shortener"
-	dbName         = "mydb"
-)
-
 func main() {
 	// CONTEXT
-	contextOur := context.TODO()
+	ctx := context.TODO()
 	// CONFIG
 	cfg := config.MustLoad()
 
@@ -31,15 +26,16 @@ func main() {
 	logger.Info("Starting logger", slog.String("env", cfg.Env))
 	logger.Debug("debug messages are enabled")
 
+	// Run migrations
+	if err := storage.RunMigrations(cfg.DBName, cfg); err != nil {
+		logger.Error("Failed to run migrations", slog.String("error", err.Error()))
+	}
+
 	// MONGODB
-	mongoStorage, err := storage.ConnectToDB(collectionName, dbName, cfg, logger, contextOur)
+	mongoStorage, err := storage.ConnectToDB(cfg.CollectionName, cfg.DBName, cfg, logger, ctx)
 	if err != nil {
 		logger.Error("Can't connect to MongoDB", slog.String("error", err.Error()))
 		os.Exit(1)
-	}
-	// Run migrations
-	if err := storage.RunMigrations(dbName, cfg); err != nil {
-		logger.Error("Failed to run migrations", slog.String("error", err.Error()))
 	}
 
 	// ROUTER

@@ -1,5 +1,5 @@
-{
-    "operation": "createCollection",
-    "database": "mydb",
-    "collection": "url-shortener"
-}
+[
+   {
+    "create": "url-shortener"
+    }
+]

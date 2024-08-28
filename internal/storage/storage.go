@@ -31,7 +31,7 @@ var (
 	ZeroID         primitive.ObjectID
 )
 
-func ConnectToDB(CollectionName string, DBName string, cfg *config.Config, logger *slog.Logger, ctx context.Context) (*Storage, error) {
+func ConnectToDB(collectionName string, dbName string, cfg *config.Config, logger *slog.Logger, ctx context.Context) (*Storage, error) {
 	const op = "migrations.ConnectToDB"
 	dsn := fmt.Sprintf("mongodb://%s:%s", cfg.Dbhost, cfg.Dbport)
 	clientOptions := options.Client().ApplyURI(dsn)
@@ -44,11 +44,8 @@ func ConnectToDB(CollectionName string, DBName string, cfg *config.Config, logge
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", op, err)
 	}
-	db := client.Database(DBName)
-	if err := initCollections(db, CollectionName); err != nil {
-		return nil, fmt.Errorf("%s: %v", op, err)
-	}
-	collection := db.Collection(CollectionName)
+	db := client.Database(dbName)
+	collection := db.Collection(collectionName)
 	createStorage := Storage{collection, ctx}
 	logger.Info("Connected to MongoDB!")
 	return &createStorage, nil
@@ -57,7 +54,6 @@ func ConnectToDB(CollectionName string, DBName string, cfg *config.Config, logge
 func RunMigrations(dbName string, cfg *config.Config) error {
 	migrationsPath := "file://./db/migrations"
 	var connectionString string
-	fmt.Print("Env = ", cfg.Env)
 	if cfg.Env == "local" {
 		connectionString = fmt.Sprintf(
 			"mongodb://%s:%s/%s",
@@ -79,47 +75,11 @@ func RunMigrations(dbName string, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
-	// сделал какой-то пиздец, выглядит очень страшно, но работает и запускается каждый раз, иначе то ругается через раз,
-	// что миграционный файл не может за анмаршелить, то говорит что версия базы Дёрти, пока ничего умнее не придумал
 	err = m.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		err = m.Force(1)
-		if err != nil {
-			return fmt.Errorf("failed to apply migrations: %w", err)
-		}
-		err = RunMigrations(dbName, cfg)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func initCollections(db *mongo.Database, dbName string) error {
-	collections := []string{
-		dbName,
-	}
-	for _, collName := range collections {
-		if err := createCollectionIfNotExists(db, collName); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func createCollectionIfNotExists(db *mongo.Database, collName string) error {
-	err := db.CreateCollection(context.TODO(), collName)
-	if err != nil && !isCollectionExistsError(err) {
+	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func isCollectionExistsError(err error) bool {
-	if err == nil {
-		return false
-	}
-	return err.Error() == "collection already exists"
 }
 
 func (s *Storage) SaveURL(urlToSave string, alias string) (primitive.ObjectID, error) {
